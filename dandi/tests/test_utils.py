@@ -1,16 +1,16 @@
 import inspect
-import os
 import os.path as op
 from pathlib import Path
 import time
 from typing import Iterable, List
+from urllib.parse import urlparse, urlunparse
 
 import pytest
 import requests
 import responses
 from semantic_version import Version
 
-from .skip import mark
+from .fixtures import DandiAPI
 from .. import __version__
 from ..consts import DandiInstance, known_instances
 from ..exceptions import BadCliVersionError, CliVersionTooOldError
@@ -332,17 +332,11 @@ def test_get_instance_actual_dandi() -> None:
     assert inst.api is not None
 
 
-if "DANDI_REDIRECTOR_BASE" in os.environ:
-    using_docker = pytest.mark.usefixtures("local_dandi_api")
-else:
-    using_docker = mark.skipif_no_network
-
-
-@pytest.mark.xfail(reason="https://github.com/dandi/dandi-archive/issues/1045")
-@pytest.mark.redirector
-@using_docker
-def test_server_info() -> None:
-    r = requests.get(f"{redirector_base}/server-info")
+# @pytest.mark.xfail(reason="https://github.com/dandi/dandi-archive/issues/1045")
+def test_server_info(local_dandi_api: DandiAPI) -> None:
+    u = urlparse(local_dandi_api.api_url)
+    root_url = urlunparse(u[:2] + ("",) * 4)
+    r = requests.get(f"{root_url}/server-info")
     r.raise_for_status()
     data = r.json()
     assert "version" in data
